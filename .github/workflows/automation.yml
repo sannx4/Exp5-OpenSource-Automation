@@ -1,0 +1,146 @@
+name: Exp5 Open Source Automation
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  MONITORING_ISSUE: "6"
+
+jobs:
+
+  monitor:
+    name: Monitor and Analyze
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Make scripts executable
+        run: |
+          chmod +x monitor.sh
+          chmod +x generate_prompt.sh
+          chmod +x generate_final_report.sh
+
+      - name: Check Bash syntax
+        run: |
+          bash -n monitor.sh
+          bash -n generate_prompt.sh
+          bash -n generate_final_report.sh
+          bash -n auto_commit.sh
+
+      - name: Run log monitoring
+        run: |
+          ./monitor.sh
+
+      - name: Display monitoring report
+        run: |
+          cat monitor_report.txt
+
+      - name: Generate prompt input
+        run: |
+          ./generate_prompt.sh
+
+      - name: Display prompt input
+        run: |
+          cat llm_input.txt
+
+      - name: Generate actionable report
+        run: |
+          ./generate_final_report.sh
+
+      - name: Display final report
+        run: |
+          cat final_report.txt
+
+      - name: Add final report to Actions summary
+        run: |
+          cat final_report.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload monitoring reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: exp5-monitoring-reports
+          path: |
+            monitor_report.txt
+            llm_input.txt
+            final_report.txt
+
+  agile-update:
+    name: Update Agile Monitoring Task
+
+    needs:
+      - monitor
+
+    if: always()
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update monitoring issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+
+          chmod +x monitor.sh
+          ./monitor.sh
+
+          if grep -q "STATUS: NORMAL" monitor_report.txt
+          then
+
+            BODY="✅ AUTOMATED MONITORING SUCCESS
+
+            System Status: NORMAL
+            CI/CD Pipeline: SUCCESS
+
+            No critical errors were detected."
+
+            STATE="closed"
+
+          else
+
+            BODY="🚨 AUTOMATED MONITORING ALERT
+
+            Errors were detected in the monitored application log.
+
+            Review the GitHub Actions report and investigate the problem."
+
+            STATE="open"
+
+          fi
+
+          export BODY
+
+          python3 - <<'PY' > comment.json
+          import json
+          import os
+          print(json.dumps({"body": os.environ["BODY"]}))
+          PY
+
+          curl -fsSL \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${MONITORING_ISSUE}/comments" \
+            -d @comment.json
+
+          curl -fsSL \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${MONITORING_ISSUE}" \
+            -d "{\"state\":\"$STATE\"}"

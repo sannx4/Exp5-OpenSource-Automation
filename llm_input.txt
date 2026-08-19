@@ -21,17 +21,20 @@ MONITORING REPORT:
         LOG MONITORING REPORT
 ========================================
 
-Time: Wednesday 19 August 2026 11:50:40 AM IST
+Time: Wednesday 19 August 2026 11:53:59 AM IST
 Host: student
 User: it26120002
 
-ERROR COUNT: 0
-STATUS: NORMAL
+ERROR COUNT: 3
+STATUS: ERROR DETECTED
 
-No errors detected.
+Detected Errors:
+ERROR: Database connection failed
+FAILED: Backup operation failed
+FATAL: Application service unavailable
 
 ACTION:
-Continue normal monitoring.
+Investigate the detected errors.
 
 Monitoring completed.
 ========================================

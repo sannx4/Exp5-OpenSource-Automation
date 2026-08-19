@@ -1,0 +1,8 @@
+INFO: Application started
+INFO: User login successful
+INFO: Database connection successful
+INFO: Backup completed
+INFO: Application running normally
+
+ERROR: Database connection failed
+FAILED: Backup operation failed
